@@ -53,19 +53,16 @@ A detailed **codebook/data dictionary** is provided and should be reviewed befor
 
 ---
 
-## Outputs
-- Reproducible R scripts  
-- RMarkdown or Quarto reports  
-- EDA visualizations with written explanations  
-- Summary insights to guide future analysis or experimentation  
+**Best Practices**:  
+- Use **clear, descriptive filenames** (e.g., `eda_customer_segment.ipynb`).  
+- Document your code with **comments** and **READMEs** in each subfolder.  
+- Regularly **commit changes** with meaningful messages.  
 
----
-
-## Tools
-- **Language:** R  
-- **Key packages:** tidyverse, ggplot2, dplyr, tidyr, readxl  
-- **Reporting:** RMarkdown / Quarto  
-
+### Contact  
+For questions, contact:  
+- **Songxiu Yukihira**  
+  Engineering Manager, Innovation AI  
+  [songxiuyukihira@innovation-ai.co](mailto:songxiuyukihira@innovation-ai.co)
 ---
 
 ## Reproducibility
