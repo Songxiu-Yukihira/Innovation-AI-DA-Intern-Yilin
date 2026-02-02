@@ -8,7 +8,7 @@ This repository contains an analytical project based on the **Innovation AI Chat
 All analyses are conducted in **R** with an emphasis on clarity, reproducibility, and sound analytical reasoning.
 
 ### Repository Overview  
-This repository was created by **[Songxiu Yukihira](mailto:songxiuyukihira@innovation-ai.co)**, Engineering Manager at **Innovation AI**, to serve as a centralized workspace for **Machine Learning and Data Science interns**.  
+This repository was created by **[Songxiu Yukihira](mailto:songxiuyukihira@innovation-ai.co)**, Engineering Manager at **Innovation AI**, to serve as a centralized workspace for **Data Analyst interns**.  
 
 ### Purpose  
 - Store and version-control your **code, experiments, and project work**.  
