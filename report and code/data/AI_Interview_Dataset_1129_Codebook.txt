@@ -1,0 +1,600 @@
+================================================================================
+AI INTERVIEW DATASET CODEBOOK - 1129 CANDIDATES
+Innovation AI Collaborative Research Initiative
+================================================================================
+
+VERSION: 1.0
+DATASET PERIOD: Early Summer 2025 - December 2025
+TOTAL CANDIDATES: 1,129
+FILE: ai_interview_dataset_1129.xlsx
+
+================================================================================
+1) INTRODUCTION AND DATA GOVERNANCE
+================================================================================
+
+Innovation AI has tested and expanded an AI interview chatbot to over 1,000 users 
+since early summer 2025. This dataset (AI_Interview_dataset_1129.xlsx) contains 
+candidate profile and resume assessment data extracted from the broader AI 
+interview chatbot system.
+
+This data was collected through a collaborative partnership between Innovation AI, 
+partner institutions, and corporations interested in evaluating AI-powered 
+technical interview capabilities. The dataset is being used for product analytics, 
+quality monitoring, and model iteration to support eventual commercialization and 
+fundraising initiatives.
+
+CONFIDENTIALITY REQUIREMENT (MANDATORY):
+- Interns and team members must not share, publish, or disclose any part of 
+  this dataset or derived outputs externally.
+- Do not use the dataset for personal projects, public portfolios, GitHub, 
+  papers, or presentations.
+- Access is limited to authorized internal workflows.
+- This dataset is proprietary to Innovation AI and protected intellectual property.
+
+================================================================================
+2) DATASET OVERVIEW
+================================================================================
+
+The dataset contains 6 interconnected sheets representing different aspects of 
+the AI interview chatbot experience:
+
+Sheet 1: USERS (1,129 records)
+- Candidate demographic and profile information
+- Resume-based assessment metrics
+- Track assignment (SDE vs. Data Science)
+
+Sheet 2: SESSIONS (1,129 records)
+- Interview session metadata and timing
+- Interview type and technical parameters
+- Session performance indicators
+
+Sheet 3: TECHNICAL_QUESTIONS (3,387 records)
+- Individual technical questions asked during sessions
+- Performance metrics (score, correctness, time-to-answer)
+- Track-specific content (SDE algorithms, DS ML topics)
+
+Sheet 4: BEHAVIORAL_QUESTIONS (3,387 records)
+- Behavioral/soft-skills interview questions
+- Competency evaluations (communication, leadership, teamwork)
+- Response quality metrics
+
+Sheet 5: SYSTEM_EVENTS (3,436 records)
+- System-level events (hints provided, timeouts, feedback requests)
+- Technical telemetry and system interactions
+- Event timestamps and payloads
+
+Sheet 6: TIMELINE (2,258 records)
+- User activity timeline events
+- Session lifecycle tracking
+- Event-level progression
+
+================================================================================
+3) SHEET DEFINITIONS AND COLUMN REFERENCE
+================================================================================
+
+---
+SHEET 1: USERS
+---
+Description: Candidate profile and resume assessment data. One record per candidate.
+
+Columns:
+  
+  user_id (Text)
+  - Unique identifier for each candidate
+  - Format: user_XXXX (e.g., user_0001, user_1129)
+  - Primary key for joining with other sheets
+  
+  track (Text)
+  - Interview track assignment
+  - Values: "SDE" (Software Development Engineer), "DS" (Data Science)
+  - Segmentation variable for track-specific analyses
+  
+  mbti (Text)
+  - Myers-Briggs Type Indicator personality classification
+  - Values: 16 standard MBTI types (e.g., ISTJ, ENFP, INTJ)
+  - Distribution varies by track (SDE vs. DS have different MBTI profiles)
+  - Note: Provided by candidates during onboarding/resume review
+  
+  timezone (Text)
+  - Candidate's reported timezone
+  - Examples: UTC-5, UTC-8, UTC+0, UTC+1, UTC+5:30
+  - Used for session scheduling and analysis
+  
+  device_type (Text)
+  - Device used for interview
+  - Values: "computer", "mobile device"
+  - Can be analyzed for impact on interview performance
+  
+  highest_degree (Text)
+  - Highest educational attainment
+  - Values: "BS" (Bachelor), "MS" (Master), "PhD"
+  - Candidate background variable for segmentation
+  
+  school_tier_usnews (Text)
+  - US News & World Report ranking tier of undergraduate institution
+  - Values: "Top 10", "Top 10-25", "Top 25-50", "50+", "Non-US"
+  - Education background proxy for institutional prestige
+  
+  stem_degree_flag (Integer: 0/1)
+  - Binary indicator: 1 = STEM degree, 0 = Non-STEM
+  - Relevant background indicator for technical roles
+  
+  graduation_year (Integer)
+  - Year candidate graduated from highest degree program
+  
+  total_experience_years (Float)
+  - Total years of professional work experience
+  - Note: Capped at 5 years for early-career focus
+  
+  relevant_experience_years (Float)
+  - Years of experience directly relevant to target track
+  - Can be lower than total_experience_years if prior work in different field
+  
+  internship_count (Integer)
+  - Number of internships completed (professional or academic)
+  
+  project_count (Integer)
+  - Number of significant projects (capstone, personal, side projects)
+  
+  leadership_experience_flag (Integer: 0/1)
+  - Binary indicator: 1 = Has formal leadership experience, 0 = No
+  - Background variable for behavioral assessment correlation
+  
+  resume_experience_score (Integer)
+  - Scoring of resume experience section quality and relevance
+  - Range: 0-100
+  - Calculated from: work history, internships, projects, school tier, stem alignment
+  - Higher score = stronger experience narrative
+  
+  skill_match_score (Integer)
+  - Assessment of how well candidate's skills match target track requirements
+  - Range: 0-100
+  - Calculated from: resume keywords, project domains, technical depth
+  - Higher score = better technical alignment
+  
+  experience_depth_score (Integer)
+  - Depth and complexity of experience demonstrated
+  - Range: 1-5 (scale)
+  - 1 = Surface-level, 5 = Deep technical expertise
+  
+  experience_consistency_flag (Integer: 0/1)
+  - Binary indicator: 1 = Consistent career progression, 0 = Gaps/inconsistencies
+  - Resume quality indicator
+  
+  resume_gap_detected (Integer: 0/1)
+  - Binary indicator: 1 = Employment gap or timeline inconsistency, 0 = None
+  - Resume quality and background signal
+  
+  resume_overclaim_risk (Text)
+  - Assessment of overclaiming/exaggeration risk in resume
+  - Values: "Low", "Medium", "High"
+  - Based on: skill level, claims alignment, background check signals
+  
+  resume_review_time_sec (Integer)
+  - Time spent by reviewer assessing candidate's resume
+  
+  resume_feedback_length_tokens (Integer)
+  - Length of written feedback provided to candidate on resume
+  
+  overall_resume (Float)
+  - Composite resume quality score (0-100 scale)
+  - Aggregate assessment of resume quality considering experience, skills,
+    depth, consistency, and professional risk factors
+  - Used for initial screening and track assignment decisions
+
+---
+SHEET 2: SESSIONS
+---
+Description: Interview session metadata and performance. One record per session (one per user).
+Note: Currently 1:1 mapping with users. Each candidate had one interview session.
+
+Columns:
+
+  session_id (Text)
+  - Unique identifier for interview session
+  - Format: sess_XXXX (e.g., sess_0001)
+  - Foreign key to join with questions and events
+  
+  user_id (Text)
+  - Reference to candidate (foreign key to USERS sheet)
+  - Enables linking candidate profile with session performance
+  
+  session_start_ts (Datetime)
+  - ISO 8601 timestamp of session start
+  - Format: YYYY-MM-DDTHH:MM:SSTZ
+  - Distributed across June 2025 - December 2025
+  
+  session_end_ts (Datetime)
+  - ISO 8601 timestamp of session end
+  - Calculated from: start_ts + duration_sec
+  
+  interview_type (Text)
+  - Type of interview conducted
+  - Values: "Technical", "Behavioral", "Mixed"
+  - Indicates variation in interview format and content balance
+  
+  track (Text)
+  - Candidate's interview track (SDE or DS)
+  - Duplicated from USERS for convenience
+  
+  version_tag (Text)
+  - Version of AI chatbot system used
+  - Values: v1.3, v1.4, v1.5
+  - Enables analysis of system evolution and improvements
+  
+  overall_tech_score (Integer)
+  - Aggregate technical interview performance score
+  - Based on: question_score from all tech_questions in session
+  
+  weighted_behavior_score (Integer)
+  - Aggregate behavioral interview performance score
+  - Aggregate assessment of soft skills demonstrated across behavioral questions
+  - Reflects: communication, teamwork, leadership, conflict resolution, and interpersonal abilities
+  
+  final_recommendation (Text)
+  - Overall hiring recommendation from interview
+  - Values: "hire", "maybe", "no-hire"
+  - Based on combined assessment of technical and behavioral performance
+  - Reflects interviewer recommendation for candidate advancement
+  
+  pass_flag (Integer: 0/1)
+  - Binary pass/fail indicator
+  - 1 = Recommended for hire (final_recommendation = "hire")
+  - 0 = Not recommended (final_recommendation = "maybe" or "no-hire")
+  
+  confidence_change_overall (Integer)
+  - Change in interviewer confidence from start to end of session
+  - Range: -10 to +10
+  - Positive = increased confidence in candidate's fit
+  - Negative = decreased confidence
+  
+  latency_ms_p50 (Integer)
+  - Median response latency from AI chatbot system
+  - Includes: API calls, ML inference, network latency
+  
+  latency_ms_p95 (Integer)
+  - 95th percentile response latency
+  - Indicates: worst-case performance during session
+  
+  messages_exchanged (Integer)
+  - Total number of messages in interview conversation
+  - Includes: system prompts, candidate responses, follow-up questions, feedback
+
+---
+SHEET 3: TECHNICAL_QUESTIONS
+---
+Description: Individual technical interview questions and responses.
+Note: Exactly 3 technical questions per session (for sessions with Technical/Mixed type).
+Expected records: ~3,387 (1,129 sessions × 3 questions)
+
+Columns:
+
+  tech_question_id (Text)
+  - Unique identifier for each technical question asked
+  - Format: sess_XXXX_tq_Y (e.g., sess_0001_tq_1, sess_0001_tq_2, sess_0001_tq_3)
+  - Uniquely identifies each question instance in sequence
+  
+  session_id (Text)
+  - Reference to parent interview session (foreign key)
+  - Enables aggregation to session-level metrics
+  
+  order_in_session (Integer)
+  - Position of question in session sequence
+  - Values: 1, 2, 3 (always 3 technical questions per session)
+  - Questions escalate in difficulty: Q1 (easy/medium), Q2 (medium), Q3 (medium/hard)
+  
+  question_id (Text)
+  - Identifier for question template/bank
+  - Format: SDE_Q1 / SDE_Q2 / SDE_Q3 for SDE track
+  - Format: DS_Q1 / DS_Q2 / DS_Q3 for DS track
+  - Same template asked across candidates to enable comparison
+  
+  question_text (Text)
+  - Full text of the question posed to candidate
+  - SDE examples: "Two Sum variant...", "Binary tree traversal...", "DP/Greedy..."
+  - DS examples: "Explain bias-variance tradeoff...", "Model evaluation metrics...", "Feature leakage..."
+  
+  difficulty_level (Integer)
+  - Numeric difficulty rating for question
+  - Range: 1-5
+  - 1-2 = Easy, 3 = Medium, 4-5 = Hard
+  - Influenced by candidate skill level (adaptive difficulty)
+  
+  question_submit_ts (Datetime)
+  - ISO 8601 timestamp when candidate submitted answer
+  - Enables time-to-answer calculation
+  
+  time_to_answer_sec (Integer)
+  - Duration candidate spent answering question
+  - Range: 15-360 seconds (15 seconds to 6 minutes)
+  - Influenced by: difficulty, candidate skill, anxiety
+  - Longer time often indicates struggle; very short time may indicate guessing
+  
+  question_score (Integer)
+  - Individual question performance score
+  - Range: 0-100
+  - Calculated from: correctness_flag, time_to_answer, approach quality
+  
+  correctness_flag (Integer: 0/1)
+  - Binary correctness indicator
+  - 1 = Correct solution/approach, 0 = Incorrect
+  - Influenced by: candidate skill, question difficulty, anxiety level
+  
+  followup_turns (Integer)
+  - Number of follow-up exchanges on same question
+  - Range: 1-4
+  - Represents: clarification requests, hint usage, iterative problem solving
+  - Higher count = more coaching/assistance needed
+  
+  [SDE-SPECIFIC COLUMNS] (NULL for DS track):
+  
+  leetcode_difficulty (Text)
+  - LeetCode difficulty classification of problem
+  - Values: "Easy", "Medium", "Hard"
+  - Matches: difficulty_level mapping
+  
+  problem_type (Text)
+  - Category of algorithmic problem
+  - Examples: "Arrays", "Strings", "Tree", "Graph", "DP", "Greedy", etc.
+  - Used for skill assessment in specific domains
+  
+  algorithm_tested (Text)
+  - Primary algorithm or technique being evaluated
+  - Examples: "Hashing", "Sliding Window", "DFS", "BFS/Topological", etc.
+  - Indicates which computer science concepts are being tested
+  
+  time_complexity_expected (Text)
+  - Optimal time complexity for this problem
+  - Values: "O(n)", "O(n log n)", "O(log n)", "O(n^2)", etc.
+  - Standard complexity notation
+  
+  time_complexity_user (Text)
+  - Time complexity of candidate's solution
+  - Values: Same as expected (if correct) or other values (if suboptimal)
+  - Indicates: algorithm efficiency understanding
+  
+  [DS-SPECIFIC COLUMNS] (NULL for SDE track):
+  
+  ml_topic (Text)
+  - Machine learning topic being tested
+  - Examples: "Regression", "Classification", "Clustering", "Model Evaluation", 
+    "Feature Engineering", "Causal Inference", "Time Series"
+  - Indicates ML domain expertise areas
+  
+  ds_question_type (Text)
+  - Type of DS question asked
+  - Values: "Conceptual", "Applied", "Interpretation"
+  - Conceptual = theory, Applied = practical implementation, 
+    Interpretation = understanding results
+  
+  math_requirement (Text)
+  - Level of mathematical knowledge required
+  - Values: "Low", "Medium", "High"
+  - Indicates: calculus, linear algebra, statistics depth needed
+  
+  statistical_depth (Integer)
+  - Depth of statistical concepts being tested
+  - Range: 1-5
+  - 1 = Basic statistics, 5 = Advanced inference/hypothesis testing
+
+---
+SHEET 4: BEHAVIORAL_QUESTIONS
+---
+Description: Behavioral/soft-skills questions and competency evaluations.
+Note: 3 behavioral questions per session.
+Expected records: ~3,387 (1,129 sessions × 3 questions)
+
+Columns:
+
+  behavioral_question_id (Text)
+  - Unique identifier for behavioral question instance
+  - Format: sess_XXXX_bq_Y (e.g., sess_0001_bq_1)
+  
+  session_id (Text)
+  - Reference to parent session (foreign key)
+  
+  order_in_session (Integer)
+  - Position in session: 1, 2, or 3
+  
+  prompt_theme (Text)
+  - Behavioral competency being evaluated
+  - Values: "conflict", "leadership", "communication", "ownership", "ambiguity"
+  - Each theme has 5 possible questions in bank for variation
+  
+  question_text (Text)
+  - Full text of behavioral question asked
+  - Examples: "Tell me about a time you had a disagreement with a colleague...",
+    "Give an example of when you took initiative to lead..."
+  - Designed to elicit STAR method responses (Situation, Task, Action, Result)
+  
+  response_time_sec (Integer)
+  - Time candidate spent answering behavioral question
+  - Range: 20-420 seconds
+  - Shorter responses may indicate lack of preparation; longer = thoughtfulness
+  - Influenced by: candidate anxiety, communication clarity, experience richness
+  
+  response_length_tokens (Integer)
+  - Length of candidate's response
+  - Range: 50-900 tokens (roughly 12-225 words)
+  - Longer responses = more detailed/specific examples
+  
+  response_sentiment_score (Float)
+  - Sentiment analysis of response
+  - Range: -1.0 to +1.0
+  - -1.0 = very negative tone, +1.0 = very positive tone
+  - 0.0 = neutral
+  - Influenced by: anxiety, communication clarity, frame of mind
+  
+  hesitation_flag (Integer: 0/1)
+  - Binary indicator of vocal hesitation/stuttering
+  - 1 = Hesitation detected, 0 = Fluent response
+  - Communication clarity signal during interview
+  
+  followup_depth (Integer)
+  - Number of follow-up questions asked by interviewer
+  - Range: 0-7
+  - Indicates: interviewer seeking clarification or diving deeper
+  - Higher count = question required more probing
+  
+  communication_clarity_score (Integer)
+  - Rating of how clearly candidate communicated answer
+  - Range: 1-5 (1=unclear, 5=very clear)
+  - Includes: articulation, organization, specificity
+  
+  teamwork_score (Integer)
+  - Rating of teamwork demonstrated in example
+  - Range: 1-5
+  - Assesses: collaboration, listening, contribution to team goals
+  
+  conflict_resolution_score (Integer)
+  - Rating of conflict resolution approach shown
+  - Range: 1-5
+  - Assesses: empathy, fairness, collaborative problem-solving
+  
+  leadership_signal_score (Integer)
+  - Rating of leadership qualities evidenced
+  - Range: 1-5
+  - Assesses: initiative, influence, decision-making, accountability
+  
+  problem_structuring_score (Integer)
+  - Rating of how well candidate structured the narrative
+  - Range: 1-5
+  - Assesses: logical flow, clarity of problem/solution, lesson learned
+  
+  professionalism_score (Integer)
+  - Rating of professionalism in response
+  - Range: 1-5
+  - Assesses: tone, respect, maturity, constructiveness
+  
+  weighted_behavior_score (Float)
+  - Composite behavioral score for this question
+  - Range: 1.0-5.0
+  - Aggregate assessment combining communication, teamwork, conflict resolution,
+    leadership, problem structuring, and professionalism dimensions
+  - Contributes to session-level behavioral evaluation
+  
+  behavioral_strength_flag (Integer: 0/1)
+  - Binary indicator: 1 = Strong behavioral performance (score >= 4.0)
+  - Indicates: candidate demonstrated strong soft skills
+  
+  behavioral_risk_flag (Integer: 0/1)
+  - Binary indicator: 1 = Risk detected (any critical score <=2)
+  - Flags: significant gaps in communication, conflict resolution, or professionalism
+
+---
+SHEET 5: SYSTEM_EVENTS
+---
+Description: System-level events and interactions during interview.
+Note: Variable number per session; typical range 3-5 events per session.
+Expected records: ~3,436
+
+Columns:
+
+  event_id (Text)
+  - Unique identifier for system event
+  - Format: sess_XXXX_tq_Y_TYPE (e.g., sess_0001_tq_1_hint, sess_0001_tq_2_timeout)
+  
+  session_id (Text)
+  - Reference to parent session (foreign key)
+  
+  event_ts (Datetime)
+  - ISO 8601 timestamp of event occurrence
+  - Enables temporal analysis of interview flow
+  
+  event_type (Text)
+  - Classification of event
+  - Values: "hint_used", "hint_not_used", "timeout", "feedback_request", 
+    "hesitation_detected"
+  - Indicates: system interactions, technical issues, coaching moments
+  
+  payload_json (Text)
+  - JSON-formatted detailed event data
+  - Structure varies by event_type
+  - Examples:
+    * hint_used: {question_id, hint_type, hint_content, hint_provided_at, 
+                   tokens_generated, average_response_time_ms, outcome, followup_required}
+    * timeout: {question_id, timeout_duration_ms, threshold_ms, action_taken}
+    * feedback_request: {question_id, feedback_type, requested_action, feedback_requested_at}
+    * hesitation_detected: {question_id, reason, pause_duration_sec, intervention}
+
+---
+SHEET 6: TIMELINE
+---
+Description: User activity timeline events tracking session lifecycle.
+Expected records: ~2,258 (2 events per session)
+
+Columns:
+
+  timeline_id (Text)
+  - Unique identifier for timeline event
+  - Format: sess_XXXX_START or sess_XXXX_END
+  
+  user_id (Text)
+  - Reference to candidate (foreign key to USERS)
+  
+  session_id (Text)
+  - Reference to session (foreign key to SESSIONS)
+  
+  event_ts (Datetime)
+  - ISO 8601 timestamp of event
+  
+  event_type (Text)
+  - Type of lifecycle event
+  - Values: "tech_start" (interview begins), "final_outcome" (interview ends)
+  - Allows reconstruction of session timeline and duration
+
+================================================================================
+4) DATA QUALITY AND LIMITATIONS
+================================================================================
+
+Data Completeness:
+- All 1,129 users have complete profile information (no missing values)
+- All users have exactly 1 session record
+- All sessions have exactly 3 technical questions (if Technical/Mixed type)
+- All sessions have exactly 3 behavioral questions (if Behavioral/Mixed type)
+
+Data Validation:
+- Timestamp consistency: session_start_ts < session_end_ts < all question timestamps
+- Score ranges: All scores within documented ranges
+- Foreign key integrity: All session_id and user_id references are valid
+
+Known Limitations:
+- MBTI data is candidate self-reported during onboarding
+- Behavioral scores are subjective and based on AI evaluation model (v1.3-1.5)
+- Technical difficulty levels are adaptive (influenced by prior questions)
+- Some candidates may have optimized resumes or over-prepared for interviews
+- Session timing includes network latency and system overhead (not pure thinking time)
+
+================================================================================
+5) USAGE RECOMMENDATIONS
+================================================================================
+
+Primary Use Cases:
+1. Understand AI chatbot effectiveness in evaluating candidates
+2. Discover what background factors influence interview performance
+3. Explore relationships between resume assessment and actual capability
+4. Identify patterns in candidate success across different dimensions
+5. Analyze system performance and user experience effects
+
+Joining Sheets:
+- USERS → SESSIONS → TECHNICAL_QUESTIONS: Use user_id and session_id
+- USERS → SESSIONS → BEHAVIORAL_QUESTIONS: Use user_id and session_id
+- SESSIONS → SYSTEM_EVENTS: Use session_id
+- USERS → TIMELINE: Use user_id
+
+================================================================================
+6) CONTACT AND VERSIONING
+================================================================================
+
+Dataset Owner: Innovation AI Analytics Team
+Version: 1.0 (1,129 users, June-December 2025 data)
+
+For questions about data interpretation or access, contact authorized personnel only.
+
+CONFIDENTIALITY REMINDER:
+This dataset is proprietary and confidential. Unauthorized sharing, publication, 
+or external use is strictly prohibited.
+
+================================================================================
+END OF CODEBOOK
+================================================================================
