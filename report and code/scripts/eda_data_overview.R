@@ -37,6 +37,17 @@ for (sheet in sheets) {
         missing_rate = sum(is.na(df)) / (nrow(df) * ncol(df))
 )
 }
-
 print("Sheet overview:")
 overview
+
+summary_list <- list()
+for (sheet in sheets) {
+    df <- data_list[[sheet]]
+    
+    # Select only numeric columns for summary
+    numeric_df <- df %>% select(where(is.numeric)) 
+    summary_list[[sheet]] <- skim(numeric_df)
+}
+summary_list
+
+
