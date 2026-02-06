@@ -50,9 +50,8 @@ for (sheet in sheets) {
     cat("\n## Sheet:", sheet, "\n")   
     # Generates information such as mean, median, standard deviation, minimum, maximum, and missing values.
     if (ncol(numeric_df) > 0) {
-        numeric_df %>% skim() %>%
-        select(skim_variable, n_missing, complete_rate, mean, sd, p0, p25, p50, p75, p100) %>%
-        print()
+      summary_list[[sheet]] <- skim(numeric_df)
+      print(summary_list[[sheet]])
     }
     else{
         cat("No numeric columns to summarize in this sheet.\n")
