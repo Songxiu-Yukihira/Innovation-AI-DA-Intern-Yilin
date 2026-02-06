@@ -13,6 +13,7 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 library(skimr)
+library(ggplot2)
 
 data_path = "../data/ai_interview_dataset_1129.xlsx"
 
@@ -50,12 +51,19 @@ for (sheet in sheets) {
     cat("\n## Sheet:", sheet, "\n")   
     # Generates information such as mean, median, standard deviation, minimum, maximum, and missing values.
     if (ncol(numeric_df) > 0) {
-      summary_list[[sheet]] <- skim(numeric_df)
-      print(summary_list[[sheet]])
+        summary_list[[sheet]] <- skim(numeric_df)
+        print(summary_list[[sheet]])
     }
     else{
         cat("No numeric columns to summarize in this sheet.\n")
     }
 }
 
+
+for sheet in sheets{
+    df <- data_list[[sheet]]
+    numeric_df <- df %>% select(where(is.numeric))
+    if (ncol(numeric_df) > 0) {
+    
+}
 
