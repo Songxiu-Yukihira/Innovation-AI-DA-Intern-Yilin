@@ -59,11 +59,16 @@ for (sheet in sheets) {
     }
 }
 
-
-for sheet in sheets{
+# Create histograms for each numeric column in each sheet
+for (sheet in sheets) {
     df <- data_list[[sheet]]
     numeric_df <- df %>% select(where(is.numeric))
     if (ncol(numeric_df) > 0) {
-    
-}
+        for (col_name in names(numeric_df)){
+            p <- ggplot(numeric_df, aes_string(x = col_name)) + 
+                geom_histogram(binwidth = 5, fill = "blue", color = "black") +
+                labs(title = paste("Histogram of", col_name, "in sheet", sheet), x = col_name, y = "Frequency")
+            print(p)
+        }
+} }
 
