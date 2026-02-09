@@ -1,0 +1,95 @@
+---
+title: "Innovation AI - Week1 - EDA"
+author: "Yilin Wang"
+date: "2026-02-04"
+output: html_document
+---
+
+## Descriptive statistics
+
+```{r , message=FALSE, warning=FALSE}
+rm(list = ls())  # Clear workspace
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(skimr)
+```
+
+Data Load: set the data path and view the names of all sheets from the EXCEL table.
+```{r load data, message=FALSE, warning=FALSE}
+data_path = "../data/ai_interview_dataset_1129.xlsx"
+
+sheets <- excel_sheets(data_path)
+print("Sheets in the dataset:")
+sheets           # List all sheet names
+```
+
+Read each sheet from the excel file:
+```{r read data, message=FALSE, warning=FALSE}
+data_list <- list()
+for (sheet in sheets) {
+  data_list[[sheet]] <- read_excel(data_path, sheet = sheet)
+}
+```
+
+Dataset Overview: summarises the basic structure of each dataset, including the number of rows, columns, variable names, and missing rate.
+```{r overview data, results='asis'}
+# Overview of each sheet
+overview <- list()
+for (sheet in sheets) {
+    df <- data_list[[sheet]]
+    overview[[sheet]] <- tibble(
+        rows = nrow(df),
+        cols = ncol(df),
+        col_names = paste(names(df), collapse = ", "),
+        missing_rate = sum(is.na(df)) / (nrow(df) * ncol(df))
+)
+}
+print("Sheet overview:")
+overview
+```
+From the overview, we can see that the general size, variable name and completeness of each table. And we can see that the missing rate of the "technical_questions" table is 0.18, which indicates that this table has missing values.
+
+
+Numeric Variable Summary: select only numeric variables and analyse numeric variables using descriptive statistics.
+```{r numeric variable summary, message=FALSE, warning=FALSE}
+summary_list <- list()
+for (sheet in sheets) {
+    df <- data_list[[sheet]]
+
+    # Select only numeric columns for summary
+    numeric_df <- df %>% select(where(is.numeric)) 
+     # Print sheet name as a header
+    cat("\n## Sheet:", sheet, "\n")   
+    # Generates information such as mean, median, standard deviation, minimum, maximum, and missing values.
+    if (ncol(numeric_df) > 0) {
+        summary_list[[sheet]] <- skim(numeric_df)
+        print(summary_list[[sheet]])
+    }
+    else{
+        cat("No numeric columns to summarize in this sheet.\n")
+    }
+}
+```
+The results include mean, median, standard deviation, minimum, maximum, and missing value information for each numeric variable.
+
+
+
+## Data visualization
+
+Create Image: Create histograms for each numeric column in each sheet
+```{r pressure, echo=FALSE}
+for (sheet in sheets) {
+    df <- data_list[[sheet]]
+    numeric_df <- df %>% select(where(is.numeric))
+    if (ncol(numeric_df) > 0) {
+        for (col_name in names(numeric_df)){
+            p.hist <- ggplot(numeric_df, aes_string(x = col_name)) + 
+                geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+                labs(title = paste("Histogram of", col_name, "in sheet", sheet), x = col_name, y = "Frequency")
+            print(p.hist)
+        }
+} }
+```
+
