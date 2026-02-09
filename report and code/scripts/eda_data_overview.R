@@ -72,3 +72,15 @@ for (sheet in sheets) {
         }
 } }
 
+# Create boxplots for each numeric column in each sheet
+for (sheet in sheets) {
+    df <- data_list[[sheet]]
+    numeric_df <- df %>% select(where(is.numeric))
+    if (ncol(numeric_df) > 0) {
+        for (col_name in names(numeric_df)){
+            p.box <- ggplot(numeric_df, aes_string(y = col_name)) + 
+                geom_boxplot(fill = "blue", color = "black") +
+                labs(title = paste("Boxplot of", col_name, "in sheet", sheet),y = col_name)
+            print(p.box)
+        }
+} }
