@@ -65,10 +65,10 @@ for (sheet in sheets) {
     numeric_df <- df %>% select(where(is.numeric))
     if (ncol(numeric_df) > 0) {
         for (col_name in names(numeric_df)){
-            p <- ggplot(numeric_df, aes_string(x = col_name)) + 
-                geom_histogram(binwidth = 5, fill = "blue", color = "black") +
+            p.hist <- ggplot(numeric_df, aes_string(x = col_name)) + 
+                geom_histogram(binwidth = 1, fill = "blue", color = "black") +
                 labs(title = paste("Histogram of", col_name, "in sheet", sheet), x = col_name, y = "Frequency")
-            print(p)
+            print(p.hist)
         }
 } }
 
