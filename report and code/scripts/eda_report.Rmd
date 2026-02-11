@@ -74,6 +74,16 @@ for (sheet in sheets) {
 ```
 The results include mean, median, standard deviation, minimum, maximum, and missing value information for each numeric variable.
 
+Suspicious points: 
+Sheet users
+1. From the chart, we can see that the highest value of total_experience_years is 8.5. But the codebook specifies that the upper limit for the early-career focus is 5 years.
+2. The project_count is at its maximum of 12, with an average of 2.5, which is above the normal range.
+3. The maximum value of resume_feedback_length_tokens is 766. We can conduct a visual analysis of outliers to determine if it is reasonable.
+
+Sheet technical_questions 
+1. The percentage of statistical_depth's missing values is extremely high. But the codebook indicates that [DS-SPECIFIC COLUMNS] (NULL for SDE track). Therefore, this absence might be reasonable due to the issue with the SDE track, and it is not a data error.
+2. The highest value of time_to_answer_sec is 1409. But the codebook specifies that the range of this is from 15s to 360s. 
+
 
 
 ## Data visualization

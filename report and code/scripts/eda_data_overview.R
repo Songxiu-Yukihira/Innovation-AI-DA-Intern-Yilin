@@ -89,12 +89,13 @@ for (sheet in sheets) {
     }
   }
 }
-    
+
+# Create boxplots for each numeric column grouped by "track" if "track" column exists
 for (sheet in sheets) {
   df <- data_list[[sheet]]
   numeric_df <- df %>% select(where(is.numeric))
   
-    # Check if "track" column exists and there are numeric columns to plot
+ # Check if "track" column exists and there are numeric columns to plot
   if ("track" %in% names(df) & ncol(numeric_df) > 0) {
     # Convert "track" to factor for better plotting
     df$track <- as.factor(df$track)        # Making sure "track" is treated as a categorical variable
