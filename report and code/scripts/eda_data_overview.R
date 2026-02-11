@@ -59,6 +59,31 @@ for (sheet in sheets) {
     }
 }
 
+# Data cleaning
+cleaned_users <- data_list[["users"]] %>%
+    mutate(total_experience_years = ifelse(total_experience_years > 5, 5, total_experience_years))   # Cap experience at 5 years (upper limit is 5 years)
+data_list[["users"]] <- cleaned_users
+
+cleaned_technical_questions <- data_list[["technical_questions"]] %>%
+    mutate(time_to_answer_sec = ifelse(time_to_answer_sec > 360, 360, time_to_answer_sec))           # Cap time at 360 seconds (upper limit is 360 seconds)
+data_list[["technical_questions"]] <- cleaned_technical_questions
+
+# After cleaning, we can check the summary statistics again to see the effect of capping
+summary_list_clean <- list()
+for (sheet in sheets) {
+    df <- data_list[[sheet]]
+    numeric_df <- df %>% select(where(is.numeric)) 
+    cat("\n## Sheet:", sheet, "after cleaning\n")   
+    if (ncol(numeric_df) > 0) {
+        summary_list_clean[[sheet]] <- skim(numeric_df)
+        print(summary_list_clean[[sheet]])
+    }
+    else{
+        cat("No numeric columns to summarize in this sheet.\n")
+    }
+}
+
+
 # Create histograms for each numeric column in each sheet
 for (sheet in sheets) {
     df <- data_list[[sheet]]
@@ -109,5 +134,4 @@ for (sheet in sheets) {
     }
   } 
 }
-    
-       
+
