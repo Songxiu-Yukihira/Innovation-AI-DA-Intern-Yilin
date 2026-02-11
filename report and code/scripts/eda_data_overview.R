@@ -81,7 +81,7 @@ for (sheet in sheets) {
   if (ncol(numeric_df) > 0) {
     for (col_name in names(numeric_df)){
       p.box.single <- ggplot(numeric_df, aes_string(x = "factor(1)", y = col_name)) + 
-        geom_boxplot(fill = "blue", color = "black") +
+        geom_boxplot(outlier.colour = "purple", fill = "blue", color = "black") +
         stat_summary(fun = median, geom = "point", shape = 20, size = 3, color = "red") +   # Add median point
         stat_summary(fun = mean, geom = "point", shape = 20, size = 3, color = "green") +   # Add mean point
         labs(title = paste("Boxplot of", col_name, "in sheet", sheet), x = "", y = col_name)
@@ -90,22 +90,23 @@ for (sheet in sheets) {
   }
 }
     
-    
-    
 for (sheet in sheets) {
   df <- data_list[[sheet]]
   numeric_df <- df %>% select(where(is.numeric))
   
     # Check if "track" column exists and there are numeric columns to plot
   if ("track" %in% names(df) & ncol(numeric_df) > 0) {
+    # Convert "track" to factor for better plotting
+    df$track <- as.factor(df$track)        # Making sure "track" is treated as a categorical variable
     for (col_name in names(numeric_df)){
-      p.box.track <- ggplot(df, aes_string(x = "track", y = col_name)) + 
+      p.box.track <- ggplot(df, aes_string(x = "track", y = col_name)) +
+        geom_boxplot(aes(fill = track), outlier.colour = "purple") +
         stat_summary(fun = median, geom = "point", shape = 20, size = 3, color = "red") +   # Add median point
         stat_summary(fun = mean, geom = "point", shape = 20, size = 3, color = "green") +   # Add mean point
-        geom_boxplot(fill = "blue", color = "black") +
         labs(title = paste("Boxplot of", col_name, "by track in sheet", sheet), x = "Track",y = col_name)
       print(p.box.track)
     }
   } 
 }
+    
        
