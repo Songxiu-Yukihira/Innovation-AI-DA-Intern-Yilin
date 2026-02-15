@@ -59,6 +59,14 @@ for (sheet in sheets) {
     }
 }
 
+clean_for_plot <- function(df, x, y = NULL){
+    # This function filters out rows with non-finite values in the specified columns for plotting.
+    if (is.null(y)) {
+        df %>% filter( is.finite(.data[[x]]))  # Filter out rows where the x column has non-finite values (NA, Inf, -Inf)
+    } else {
+        df %>% filter( is.finite(.data[[x]]), is.finite(.data[[y]]))   # Filter out rows where either x or y column has non-finite values
+    }
+}
 # Data cleaning
 cleaned_users <- data_list[["users"]] %>%
     mutate(total_experience_years = ifelse(total_experience_years > 5, 5, total_experience_years))   # Cap experience at 5 years (upper limit is 5 years)
@@ -90,9 +98,10 @@ for (sheet in sheets) {
     numeric_df <- df %>% select(where(is.numeric))
     if (ncol(numeric_df) > 0) {
         for (col_name in names(numeric_df)){
-            p.hist <- ggplot(numeric_df, aes_string(x = col_name)) + 
+            df2 <- clean_for_plot(df, col_name)  # Clean data for plotting
+            p.hist <- ggplot(df2, aes(x = .data[[col_name]])) + 
                 geom_histogram(binwidth = 1, fill = "blue", color = "black") +
-                labs(title = paste("Histogram of", col_name, "in sheet", sheet), x = col_name, y = "Frequency")
+                labs(title = paste("Histogram of", col_name, "in sheet", sheet), x = col_name, y = "Count")
             print(p.hist)
         }
 } }
@@ -102,10 +111,11 @@ for (sheet in sheets) {
   df <- data_list[[sheet]]
   numeric_df <- df %>% select(where(is.numeric))
   
-  # Create boxplots for each numeric column in the sheet (without grouping by "track")
+  # Create boxplots for each numeric column in the sheet (without grouping)
   if (ncol(numeric_df) > 0) {
     for (col_name in names(numeric_df)){
-      p.box.single <- ggplot(numeric_df, aes_string(x = "factor(1)", y = col_name)) + 
+        df2 <- clean_for_plot(df, col_name)  # Clean data for plotting
+        p.box.single <- ggplot(df2, aes(x = factor(1), y = .data[[col_name]])) + 
         geom_boxplot(outlier.colour = "purple", fill = "blue", color = "black") +
         stat_summary(fun = median, geom = "point", shape = 20, size = 3, color = "red") +   # Add median point
         stat_summary(fun = mean, geom = "point", shape = 20, size = 3, color = "green") +   # Add mean point
@@ -115,6 +125,7 @@ for (sheet in sheets) {
   }
 }
 
+      
 # Create boxplots for each numeric column grouped by "track" if "track" column exists
 for (sheet in sheets) {
   df <- data_list[[sheet]]
@@ -125,7 +136,9 @@ for (sheet in sheets) {
     # Convert "track" to factor for better plotting
     df$track <- as.factor(df$track)        # Making sure "track" is treated as a categorical variable
     for (col_name in names(numeric_df)){
-      p.box.track <- ggplot(df, aes_string(x = "track", y = col_name)) +
+        df2 <- clean_for_plot(df, col_name)  # Clean data for plotting
+        df2 <- df2 %>% filter(!is.na(track))  # Filter out rows where "track" is NA
+        p.box.track <- ggplot(df2, aes(x = track, y = .data[[col_name]])) +
         geom_boxplot(aes(fill = track), outlier.colour = "purple") +
         stat_summary(fun = median, geom = "point", shape = 20, size = 3, color = "red") +   # Add median point
         stat_summary(fun = mean, geom = "point", shape = 20, size = 3, color = "green") +   # Add mean point
@@ -133,5 +146,145 @@ for (sheet in sheets) {
       print(p.box.track)
     }
   } 
+}
+
+# Create boxplots for each numeric column grouped by major groups if they exist
+major_groups <- c("track", "device_type", "timezone") # Define major groups for analysis
+for (sheet in sheets) {
+  df <- data_list[[sheet]]
+  numeric_df <- df %>% select(where(is.numeric))
+  
+  # Create boxplots for each numeric column grouped by major groups if they exist
+  if (ncol(numeric_df) > 0) {   # Only create boxplots if there are numeric columns to plot
+    for (col_name  in names(numeric_df)) { 
+        # Loop through each major group and create boxplots if the group column exists in the dataframe 
+        for (group in major_groups) {
+            if (group %in% names(df)) {
+                df2 <- clean_for_plot(df, col_name)  # Clean data for plotting
+                df2 <- df2 %>% filter(!is.na(.data[[group]]))  # Filter out rows where the group variable is NA
+
+          p.box.group <- ggplot(df2, aes(x = .data[[group]], y = .data[[col_name]])) +
+          geom_boxplot(aes(fill = .data[[group]]), outlier.colour = "purple") +
+          stat_summary(fun = median, geom = "point", shape = 20, size = 3, color = "red") +   # Add median point
+          stat_summary(fun = mean, geom = "point", shape = 20, size = 3, color = "green") +   # Add mean point
+          labs(title = paste("Boxplot of", col_name, "by", group, "in sheet", sheet), x = group, y = col_name)
+        print(p.box.group)
+            }
+        }
+    }
+}
+}
+   
+
+# Create scatter plots for each pair of numeric columns in each sheet, colored by "track" if it exists, and calculate correlation
+for (sheet in sheets) {
+  df <- data_list[[sheet]]
+  numeric_df <- df %>% select(where(is.numeric))
+  
+  if (ncol(numeric_df) > 1) {  # Only create scatter plots if there are at least 2 numeric columns
+    numeric_cols <- names(numeric_df)
+    
+    for (i in 1:(length(numeric_cols)-1)) {
+      for (j in (i+1):length(numeric_cols)) {
+        x <- numeric_cols[i]
+        y <- numeric_cols[j]
+        
+        df2 <- clean_for_plot(df, x, y)  # Clean data for plotting
+        cor_val <- cor(df2[[x]], df2[[y]], use = "complete.obs")  # Calculate correlation, excluding NA values
+        
+        if ("track" %in% names(df2)) {
+          df2 <- df2 %>% filter(!is.na(track))  # Filter out rows where "track" is NA
+          df2$track <- as.factor(df2$track)     # Ensure "track" is treated as a categorical variable
+          
+          if (length(levels(df2$track)) > 1) {
+            p.scatter <- ggplot(df2, aes(x = .data[[x]], y = .data[[y]])) +
+              geom_point(aes(color = track)) +
+              geom_smooth(method = "lm", se = FALSE) +  # Add linear regression line
+              labs(color = "Track", title = paste("Scatter plot of", x, "vs", y, "in sheet", sheet, "\nCorrelation:", round(cor_val, 2)),
+                   x = x, y = y
+              )
+          } else {
+            p.scatter <- ggplot(df2, aes(x = .data[[x]], y = .data[[y]])) +
+              geom_point() +
+              geom_smooth(method = "lm", se = FALSE) +  # Add linear regression line
+              labs(color = "Device Type",
+                   title = paste("Scatter plot of", x, "vs", y, "by device_type in sheet", sheet,
+                                 "\nCorrelation:", round(cor_val, 2)),
+                   x = x, y = y)
+          }
+          print(p.scatter)
+        }
+      }
+    }
+  }
+}
+
+# Scatter plots colored by device_type
+for (sheet in sheets) {
+  df <- data_list[[sheet]]
+  numeric_df <- df %>% select(where(is.numeric))
+  
+  if (ncol(numeric_df) > 1) {  
+    numeric_cols <- names(numeric_df)
+    for (i in 1:(length(numeric_cols)-1)) {
+      for (j in (i+1):length(numeric_cols)) {
+        x <- numeric_cols[i]
+        y <- numeric_cols[j]
+        df2 <- clean_for_plot(df, x, y)
+        
+        if ("device_type" %in% names(df2)) {
+          df2 <- df2 %>% filter(!is.na(device_type))
+          df2$device_type <- as.factor(df2$device_type)
+          
+          if (length(levels(df2$device_type)) > 1) {
+            cor_val <- cor(df2[[x]], df2[[y]], use = "complete.obs")
+            p.scatter <- ggplot(df2, aes(x = .data[[x]], y = .data[[y]])) +
+              geom_point(aes(color = device_type)) +
+              geom_smooth(method = "lm", se = FALSE) +
+              labs(color = "Device Type",
+                   title = paste("Scatter plot of", x, "vs", y, "by device_type in sheet", sheet,
+                                 "\nCorrelation:", round(cor_val, 2)),
+                   x = x, y = y)
+            print(p.scatter)
+          }
+        }
+      }
+    }
+  }
+}
+
+
+# Scatter plots colored by timezone
+for (sheet in sheets) {
+  df <- data_list[[sheet]]
+  numeric_df <- df %>% select(where(is.numeric))
+  
+  if (ncol(numeric_df) > 1) {  
+    numeric_cols <- names(numeric_df)
+    for (i in 1:(length(numeric_cols)-1)) {
+      for (j in (i+1):length(numeric_cols)) {
+        x <- numeric_cols[i]
+        y <- numeric_cols[j]
+        df2 <- clean_for_plot(df, x, y)
+        
+        if ("timezone" %in% names(df2)) {
+          df2 <- df2 %>% filter(!is.na("timezone"))
+          df2$timezone <- as.factor(df2$timezone)
+          
+          if (length(levels(df2$timezone)) > 1) {
+            cor_val <- cor(df2[[x]], df2[[y]], use = "complete.obs")
+            p.scatter <- ggplot(df2, aes(x = .data[[x]], y = .data[[y]])) +
+              geom_point(aes(color = timezone)) +
+              geom_smooth(method = "lm", se = FALSE) +
+              labs(color = "Timezone",
+                   title = paste("Scatter plot of", x, "vs", y, "by timezone in sheet", sheet,
+                                 "\nCorrelation:", round(cor_val, 2)),
+                   x = x, y = y)
+            print(p.scatter)
+          }
+        }
+      }
+    }
+  }
 }
 
