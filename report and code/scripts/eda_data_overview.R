@@ -288,3 +288,81 @@ for (sheet in sheets) {
   }
 }
 
+# Create a new dataframe "user_session" by performing a left join between the "users" dataframe and the "sessions" dataframe based on the "user_id" column. This will combine user information with their session data, allowing for analysis of user behavior in relation to their sessions.
+user_session <- data_list[["users"]] %>%   
+  left_join(
+    data_list[["sessions"]],
+    by = "user_id"
+  )
+# Group the combined user-session data by device type and calculate summary statistics for each device type, including average technical score, average behavior score, pass rate, average latency at 50th and 95th percentiles, and average number of messages exchanged.
+device_summary <- user_session %>%    
+  group_by(device_type) %>%    
+  summarise(
+    n = n(),   # Count the number of observations for each device type
+
+    avg_tech_score = mean(overall_tech_score, na.rm = TRUE),
+
+    avg_behavior_score = mean(weighted_behavior_score, na.rm = TRUE),
+
+    pass_rate = mean(pass_flag, na.rm = TRUE),
+
+    avg_latency_p50 = mean(latency_ms_p50, na.rm = TRUE),
+
+    avg_latency_p95 = mean(latency_ms_p95, na.rm = TRUE),
+
+    avg_messages = mean(messages_exchanged, na.rm = TRUE)
+  )
+
+print(device_summary)
+
+
+t.test(overall_tech_score ~ device_type,    # Perform a t-test to compare the average technical scores between different device types, testing the null hypothesis that there is no difference in technical scores based on device type.
+       data = user_session)
+t.test(weighted_behavior_score ~ device_type,  # Perform a t-test to compare the average behavior scores between different device types, testing the null hypothesis that there is no difference in behavior scores based on device type.
+       data = user_session)
+
+tbl <- table(       # Create a contingency table to examine the relationship between device type and pass/fail status, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+  user_session$device_type,
+  user_session$pass_flag
+)
+
+chisq.test(tbl)
+
+# Calculate the timeout rate for each device type by filtering the "system_events" dataframe for events of type "timeout", then joining with the "sessions" and "users" dataframes to get device type information, and finally grouping by device type to count the number of timeouts for each device type.
+timeout_rate <- data_list[["system_events"]] %>%
+  filter(event_type == "timeout") %>%
+  left_join(
+    data_list[["sessions"]],
+    by = "session_id"
+  ) %>%
+  left_join(
+    data_list[["users"]],
+    by = "user_id"
+  ) %>%
+  group_by(device_type) %>%
+  summarise(timeout_count = n())
+
+timeout_rate
+
+# Calculate the average time to answer technical questions for each device type by joining the "technical_questions" dataframe with the "sessions" and "users" dataframes to get device type information, then grouping by device type and calculating the mean time to answer for each device type.
+tech_time <- data_list[["technical_questions"]] %>%
+  left_join(
+    data_list[["sessions"]],
+    by = "session_id"
+  ) %>%
+  left_join(
+    data_list[["users"]],
+    by = "user_id"
+  ) %>%
+  group_by(device_type) %>%
+  summarise(
+    avg_time = mean(time_to_answer_sec)
+  )
+
+tech_time
+
+# Create a density plot to visualize the distribution of latency at the 95th percentile for each device type, allowing for comparison of latency performance across different device types.
+ggplot(user_session,
+       aes(x = latency_ms_p95, fill = device_type)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Latency Distribution by Device Type")
