@@ -342,3 +342,437 @@ for (sheet in sheets) {
 
 ```
 
+
+```{r join uers and sessions, message=FALSE, warning=FALSE}
+# Create a new dataframe "user_session" by performing a left join between the "users" dataframe and the "sessions" dataframe based on the "user_id" column. This will combine user information with their session data, allowing for analysis of user behavior in relation to their sessions.
+user_session <- data_list[["users"]] %>%   
+  left_join(
+    data_list[["sessions"]],
+    by = "user_id"
+  )
+```
+
+## Device experience pattern (Mobile vs Desktop):
+
+```{r , message=FALSE, warning=FALSE}
+# Group the combined user-session data by device type and calculate summary statistics for each device type, including average technical score, average behavior score, pass rate, average latency at 50th and 95th percentiles, and average number of messages exchanged.
+device_summary <- user_session %>%    
+  group_by(device_type) %>%    
+  summarise(
+    n = n(),   # Count the number of observations for each device type
+
+    avg_tech_score = mean(overall_tech_score, na.rm = TRUE),
+
+    avg_behavior_score = mean(weighted_behavior_score, na.rm = TRUE),
+
+    pass_rate = mean(pass_flag, na.rm = TRUE),
+
+    avg_latency_p50 = mean(latency_ms_p50, na.rm = TRUE),
+
+    avg_latency_p95 = mean(latency_ms_p95, na.rm = TRUE),
+
+    avg_messages = mean(messages_exchanged, na.rm = TRUE)
+  )
+
+print(device_summary)
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+t.test(overall_tech_score ~ device_type,    # Perform a t-test to compare the average technical scores between different device types, testing the null hypothesis that there is no difference in technical scores based on device type.
+       data = user_session)
+t.test(weighted_behavior_score ~ device_type,  # Perform a t-test to compare the average behavior scores between different device types, testing the null hypothesis that there is no difference in behavior scores based on device type.
+       data = user_session)
+```
+
+The Welch two-sample t-test indicates that mobile users have significantly lower technical scores than desktop users (t = 3.39, p < 0.05). The 95% confidence interval [1.58, 5.96] suggests that desktop users score between 1.6 and 6 points higher on average.
+However, no significant difference is observed in behavioral scores (p = 0.31 > 0.05), indicating similar engagement or behavioral performance across devices.
+
+```{r , message=FALSE, warning=FALSE}
+tbl <- table(       # Create a contingency table to examine the relationship between device type and pass/fail status, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+  user_session$device_type,
+  user_session$pass_flag
+)
+
+chisq.test(tbl)
+
+```
+
+The statement "p-value = 0.2001 > 0.05" means: If the type of equipment really doesn't affect the success rate,
+then the probability of such a difference occurring is 20%.
+
+The result was not statistically significant ( X-squared = 1.64, p = 0.20 > 0.05), indicating that pass rates do not significantly differ between mobile and desktop users.
+
+```{r , message=FALSE, warning=FALSE}
+# Calculate the timeout rate for each device type by filtering the "system_events" dataframe for events of type "timeout", then joining with the "sessions" and "users" dataframes to get device type information, and finally grouping by device type to count the number of timeouts for each device type.
+timeout_rate <- data_list[["system_events"]] %>%
+  filter(event_type == "timeout") %>%
+  left_join(
+    data_list[["sessions"]],
+    by = "session_id"
+  ) %>%
+  left_join(
+    data_list[["users"]],
+    by = "user_id"
+  ) %>%
+  group_by(device_type) %>%
+  summarise(timeout_count = n())
+
+timeout_rate
+
+```
+
+The timeout rate of the computer: 203 / 832 = 24.4%
+The timeout rate of the mobile: 66 / 297 = 22.2%
+
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate the average time to answer technical questions for each device type by joining the "technical_questions" dataframe with the "sessions" and "users" dataframes to get device type information, then grouping by device type and calculating the mean time to answer for each device type.
+tech_time <- data_list[["technical_questions"]] %>%
+  left_join(
+    data_list[["sessions"]],
+    by = "session_id"
+  ) %>%
+  left_join(
+    data_list[["users"]],
+    by = "user_id"
+  ) %>%
+  group_by(device_type) %>%
+  summarise(
+    avg_time = mean(time_to_answer_sec)
+  )
+
+tech_time
+
+```
+
+
+Although mobile users show significantly lower technical scores, system performance indicators do not suggest higher friction on mobile. Timeout rates, latency percentiles, and session duration are similar across devices. Therefore, the lower technical performance observed on mobile is unlikely to be driven by UX-related issues, but may instead reflect contextual or device-related constraints.
+
+```{r , message=FALSE, warning=FALSE}
+# Create a density plot to visualize the distribution of latency at the 95th percentile for each device type, allowing for comparison of latency performance across different device types.
+ggplot(user_session,
+       aes(x = latency_ms_p95, fill = device_type)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Latency Distribution by Device Type")
+
+```
+
+## Version impact (v1.3 → v1.5): 
+
+```{r , message=FALSE, warning=FALSE}
+# Calculate the session duration in seconds for each user-session by taking the difference between the session end timestamp and the session start timestamp, and converting it to seconds. This will allow for analysis of how long users are spending in their sessions, which can be an important factor in understanding user engagement and performance.
+user_session <- user_session %>%
+  mutate(
+    session_duration_sec = as.numeric(difftime(session_end_ts, session_start_ts, units = "secs"))
+  )
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Group the combined user-session data by version and calculate summary statistics for each version, including average technical score, average behavior score, pass rate, average latency at 50th and 95th percentiles, and average session time. This will allow for analysis of how different versions of the system perform in terms of user outcomes and session characteristics.
+version_summary <- user_session %>%
+  group_by(version_tag) %>%
+  summarise(
+    n = n(),    # Count the number of observations for each version
+    
+    avg_tech = mean(overall_tech_score, na.rm = TRUE),
+    
+    avg_behavior = mean(weighted_behavior_score, na.rm = TRUE),
+    
+    pass_rate = mean(pass_flag, na.rm = TRUE),
+    
+    avg_latency_p50 = mean(latency_ms_p50, na.rm = TRUE),
+    
+    avg_latency_p95 = mean(latency_ms_p95, na.rm = TRUE),
+    
+    avg_session_time = mean(session_duration_sec, na.rm = TRUE)
+  )
+
+version_summary
+
+```
+For avg_tech (overall_tech_score): v1.5 is the most highest, v1.4 is slightly lower. But the differences among the three versions are only 1-2 points.
+
+For avg_behavior (weighted_behavior_score): The three versions are basically identical.
+
+For pass_rate (pass_flag): v1.4 showed a decline but v1.5 returned to normal.
+
+For avg_latency_p50 (latency_ms_p50): Continued decline.
+
+```{r , message=FALSE, warning=FALSE}
+# Perform an ANOVA test to compare the average technical scores across different versions, testing the null hypothesis that there is no difference in technical scores based on version.
+tech_anova <- aov(overall_tech_score ~ version_tag, data = user_session)   # Because there are three versions: 1.3, 1.4, and 1.5, it is not possible to use a disposable t. test
+summary(tech_anova)
+# Perform an ANOVA test to compare the average behavior scores across different versions, testing the null hypothesis that there is no difference in behavior scores based on version.
+behavior_anova <- aov(weighted_behavior_score ~ version_tag, data = user_session)
+summary(behavior_anova)
+
+```
+
+For overall_tech_score: H0: The technical scores of the three versions are the same, p = 0.287 > 0.05. SO H0 cannot be rejected. Therefore, there is no statistically significant change in the technical score.
+
+For weighted_behavior_score: H0: The behavior scores of the three versions are the same, p = 0.871 > 0.05. SO H0 cannot be rejected. Therefore, there is no statistically significant change in the behavior score.
+
+Therefore, the update of version will not affect the technical score and the behavioral score.
+
+```{r , message=FALSE, warning=FALSE}
+tbl_v <- table(       # Create a contingency table to examine the relationship between version and pass/fail status, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+  user_session$version_tag,     
+  user_session$pass_flag
+)
+chisq.test(tbl_v) 
+
+```
+
+Null Hypothesis H0: The version will not affect the pass rate. p - value = 0.2683 > 0.05. So we cannot reject the null hypothesis. Therefore, there is no significant correlation between the version differences and pass.
+
+```{r , message=FALSE, warning=FALSE}
+# Calculate the timeout rate for each version by filtering the "system_events" dataframe for events of type "timeout", then joining with the "sessions" and "users" dataframes to get version information, and finally grouping by version to count the number of timeouts for each version.
+timeout_version <- data_list[["system_events"]] %>%
+  filter(event_type == "timeout") %>%
+  left_join(
+    data_list[["sessions"]], 
+    by = "session_id"
+  ) %>%
+  group_by(
+    version_tag
+  ) %>%
+  summarise(timeout_count = n())
+timeout_version
+
+```
+
+Due to the different number of data points (n) in each version, we need to calculate the timeout rate.
+v1.3: 84 / 325 = 25.8%
+v1.4: 131 / 509 = 25.7%
+v1.5: 54 / 295 = 18.3%
+We can see that the timeout rate of v1.5 has significantly decreased. This indicates that v1.5 has resolved the issue of system stability.
+
+
+## Therefore, Version updates from v1.3 to v1.5 did not significantly improve candidate performance outcomes (technical, behavioral scores and pass rates). However, system performance improved substantially, with reduced median latency and lower timeout counts, indicating improved system smoothness rather than changes in evaluation quality.
+
+## Education tier pattern (School tier / degree level):
+
+```{r , message=FALSE, warning=FALSE}
+# Calculate the average score by school level
+school_summary <- user_session %>%
+  group_by(school_tier_usnews) %>%
+  summarise(
+    n = n(),
+    avg_resume = mean(overall_resume, na.rm = TRUE),
+    avg_tech = mean(overall_tech_score, na.rm = TRUE),
+    avg_behavior = mean(weighted_behavior_score, na.rm = TRUE),
+    pass_rate = mean(pass_flag, na.rm = TRUE)
+  )
+
+school_summary
+
+```
+
+By observing this data table, we can clearly see that the candidates from top-tier schools indeed have higher levels of technical skills, behavioral qualities and pass rates.
+
+```{r , message=FALSE, warning=FALSE}
+# Calculate the average score by degree level
+degree_summary <- user_session %>%
+  group_by(highest_degree) %>%
+  summarise(
+    n = n(),
+    avg_resume = mean(overall_resume, na.rm = TRUE),
+    avg_tech = mean(overall_tech_score, na.rm = TRUE),
+    avg_behavior = mean(weighted_behavior_score, na.rm = TRUE),
+    pass_rate = mean(pass_flag, na.rm = TRUE)
+  )
+
+degree_summary
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# tech_score by school level
+tech_school_aov <- aov(overall_tech_score ~ school_tier_usnews, data = user_session)
+summary(tech_school_aov)
+
+# behavior_score by school level
+behavior_school_aov <- aov(weighted_behavior_score ~ school_tier_usnews, data = user_session)
+summary(behavior_school_aov)
+
+# tech_score by degree level
+tech_degree_aov <- aov(overall_tech_score ~ highest_degree, data = user_session)
+summary(tech_degree_aov)
+
+# behavior_score by degree level
+behavior_degree_aov <- aov(weighted_behavior_score ~ highest_degree, data = user_session)
+summary(behavior_degree_aov)
+
+```
+
+For tech_score by school level: Null Hypothesis H0: There is no difference in the mean technical scores among different school levels. Pr = 5.13e-05 < 0.05 and the F value = 6.304. So the null hypothesis can be rejected. Therefore, the school level has a significant impact on the technical score.
+
+For behavior_score by school level: Null Hypothesis H0: There is no difference in the mean values of behavioral scores among different school levels. Pr = 2.5e-08 < 0.05 and the F value = 10.47. Therefore, the null hypothesis can be rejected. Thus, the school level has a significant impact on the behavior score. And the influence of the school level on the behavioral score is stronger than that on the technical score.
+
+For tech_score by degree level: Null Hypothesis H0: There is no difference in the mean values of technical scores among different degree levels. Pr = 1.28e-05 < 0.05 and the F value = 11.38. Therefore, the null hypothesis can be rejected. Thus, the degree level has a significant impact on the technical score.
+
+For behavior_score by degree level: Null Hypothesis H0: There is no difference in the mean values of behavioral scores among different degree levels. Pr = 2.64e-05 < 0.05 and the F value = 10.64. So the null hypothesis can be rejected. Therefore, the degree level has a significant impact on the behavior score. 
+
+## And we can see that the F values for the "degree level" are significantly higher than those for the "school level". This means that educational qualifications have a greater impact on technical scores and behavioral scores than on the level of the school.
+
+```{r , message=FALSE, warning=FALSE}
+tbl_school <- table(  # Create a contingency table to examine the relationship between school tier and pass/fail status, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+    user_session$school_tier_usnews, 
+    user_session$pass_flag
+)
+chisq.test(tbl_school)
+
+tbl_degree <- table(  # Create a contingency table to examine the relationship between degree level and pass/fail status, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+    user_session$highest_degree, 
+    user_session$pass_flag
+)
+chisq.test(tbl_degree)
+
+```
+
+We can see that the p-values for both the school level and the degree level are less than 0.05. This means that the school level and degree level will affect the pass rate. Moreover, the p-values at the degree level are even smaller, which indicates that the degree level has a more significant impact on the pass rate.
+
+```{r , message=FALSE, warning=FALSE}
+# Create a boxplot to visualize the distribution of technical scores across different school tiers, allowing for comparison of technical performance based on the tier of the school attended.
+ggplot(user_session, aes(x = school_tier_usnews, y = overall_tech_score)) +
+  geom_boxplot() +
+  labs(title = "Technical Score by School Tier", x = "School Tier", y = "Tech Score")
+
+# Create a boxplot to visualize the distribution of behavior scores across different school tiers, allowing for comparison of behavior performance based on the tier of the school attended.
+ggplot(user_session, aes(x = school_tier_usnews, y = weighted_behavior_score)) +
+  geom_boxplot() +
+  labs(title = "Behavior Score by School Tier", x = "School Tier", y = "Behavior Score")
+
+# Create a boxplot to visualize the distribution of technical scores across different degree levels, allowing for comparison of technical performance based on the highest degree attained.
+ggplot(user_session, aes(x = highest_degree, y = overall_tech_score)) +
+  geom_boxplot() +
+  labs(title = "Technical Score by Highest Degree", x = "Highest Degree", y = "Tech Score")
+
+# Create a boxplot to visualize the distribution of behavior scores across different school tiers, allowing for comparison of behavior performance based on the tier of the school attended.
+ggplot(user_session, aes(x = highest_degree, y = weighted_behavior_score)) +
+  geom_boxplot() +
+  labs(title = "Behavior Score by Highest Degree", x = "Highest Degree", y = "Behavior Score")
+
+```
+
+## MBTI pattern (personality bucket vs outcomes):
+
+```{r , message=FALSE, warning=FALSE}
+# Group the combined user-session data by MBTI personality type and calculate summary statistics for each MBTI type, including average technical score, average behavior score, and pass rate. This will allow for analysis of how different personality types perform in terms of technical and behavior scores, as well as their likelihood of passing the interview.
+mbti_summary <- user_session %>%   
+  group_by(mbti) %>%
+  summarise(
+    n = n(),
+    avg_tech = mean(overall_tech_score, na.rm = TRUE),
+    avg_behavior = mean(weighted_behavior_score, na.rm = TRUE),
+    pass_rate = mean(pass_flag, na.rm = TRUE)
+  )
+
+mbti_summary
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Perform an ANOVA test to compare the average technical scores across different MBTI personality types, testing the null hypothesis that there is no difference in technical scores based on MBTI type.
+tech_aov <- aov(overall_tech_score ~ mbti, data = user_session)
+summary(tech_aov)
+
+# Perform an ANOVA test to compare the average behavior scores across different MBTI personality types, testing the null hypothesis that there is no difference in behavior scores based on MBTI type.
+behavior_aov <- aov(weighted_behavior_score ~ mbti, data = user_session)
+summary(behavior_aov)
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+tbl <- table(user_session$mbti, user_session$pass_flag)   # Create a contingency table to examine the relationship between MBTI personality type and pass/fail status
+chisq.test(tbl)
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Create a boxplot to visualize the distribution of technical scores across different MBTI personality types, allowing for comparison of technical performance based on personality type.
+ggplot(user_session, aes(x = mbti, y = overall_tech_score)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Technical Score by MBTI Type",
+       x = "MBTI Type",
+       y = "Technical Score")
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Create a boxplot to visualize the distribution of behavior scores across different MBTI personality types, allowing for comparison of behavior performance based on personality type.
+ggplot(user_session, aes(x = mbti, y = weighted_behavior_score)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Behavior Score by MBTI Type",
+       x = "MBTI Type",
+       y = "Behavior Score")
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Calculate the distribution of users across different tracks for each MBTI personality type by grouping the user-session data by MBTI type and track, counting the number of users in each group, and calculating the proportion of users in each track for each MBTI type. This will allow for analysis of whether certain personality types are more likely to be associated with specific tracks.
+track_distribution <- user_session %>%
+  group_by(mbti, track.y) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(mbti) %>%
+  mutate(prop = count / sum(count))
+track_distribution
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+tbl_mbti_track <- table(   # Create a contingency table to examine the relationship between MBTI personality type and track, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+  user_session$mbti,
+  user_session$track.y
+)
+
+chisq.test(tbl_mbti_track)
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Create a bar plot to visualize the distribution of tracks across different MBTI personality types, allowing for comparison of track preferences based on personality type.
+ggplot(user_session, aes(x = mbti, fill = track.y)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Track Distribution by MBTI Type",
+       x = "MBTI Type",
+       y = "Proportion")
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+tbl_mbti_device <- table(  # Create a contingency table to examine the relationship between MBTI personality type and device type, which will be used for a chi-squared test to determine if there is a significant association between these two categorical variables.
+  user_session$mbti,
+  user_session$device_type
+)
+chisq.test(tbl_mbti_device)
+
+```
+
+
+```{r , message=FALSE, warning=FALSE}
+# Create a bar plot to visualize the distribution of device types across different MBTI personality types, allowing for comparison of device usage based on personality type.
+ggplot(user_session, aes(x = mbti, fill = device_type)) +
+  geom_bar(position = "fill") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Device Usage by MBTI Type",
+       x = "MBTI Type",
+       y = "Proportion")
+
+```
+
