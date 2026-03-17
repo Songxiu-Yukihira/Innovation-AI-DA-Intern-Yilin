@@ -564,4 +564,337 @@ ggplot(user_session, aes(x = mbti, fill = device_type)) +
        x = "MBTI Type",
        y = "Proportion")
 
+
+library(caret)
+library(pROC)
+
+# Calculate summary statistics for behavioral questions by session_id, including average response time, average response length, average sentiment score, hesitation rate, and average scores for communication clarity, teamwork, and leadership signals. This will allow for analysis of how different behavioral factors are associated with interview outcomes at the session level.
+behavior_summary <- data_list[["behavioral_questions"]] %>%
+  group_by(session_id) %>%
+  summarise(
+    avg_response_time = mean(response_time_sec, na.rm = TRUE),
+    avg_response_length = mean(response_length_tokens, na.rm = TRUE),
+    avg_sentiment = mean(response_sentiment_score, na.rm = TRUE),
+    hesitation_rate = mean(hesitation_flag, na.rm = TRUE),
+    avg_clarity = mean(communication_clarity_score, na.rm = TRUE),
+    avg_teamwork = mean(teamwork_score, na.rm = TRUE),
+    avg_leadership = mean(leadership_signal_score, na.rm = TRUE)
+  )
+
+user_session <- user_session %>%
+  left_join(
+    behavior_summary,
+    by = "session_id"
+  )
+
+# Create the modeling dataset by selecting relevant features from the combined user-session data, including the target variable "pass_flag" and various features related to the user's resume/profile, behavior during the session, and session/system characteristics. This dataset will be used for building predictive models to understand factors influencing interview outcomes.
+model_data <- user_session %>%
+  select(
+    pass_flag,
+    # Resume / Profile features
+    school_tier_usnews,
+    highest_degree,
+    stem_degree_flag,
+    graduation_year,
+    total_experience_years,
+    internship_count,
+    project_count,
+    leadership_experience_flag,
+    overall_resume,
+    skill_match_score,
     
+    # Behavioral features
+    avg_response_time,
+    avg_response_length,
+    avg_sentiment,
+    hesitation_rate,
+    avg_clarity,
+    avg_teamwork,
+    avg_leadership,
+    
+    # Session / System features
+    latency_ms_p50,
+    latency_ms_p95,
+    interview_type,
+    messages_exchanged
+  )
+
+# Convert the target variable "pass_flag" to a factor with levels "fail" and "pass", and convert categorical features to factors as well. Additionally, remove any rows with missing values from the modeling dataset to ensure that the data is clean and ready for modeling.
+model_data <- model_data %>%
+  mutate(
+    pass_flag = factor(pass_flag, levels = c(0,1), labels = c("fail","pass")),
+    
+    # Resume features
+    school_tier_usnews = as.factor(school_tier_usnews),
+    highest_degree = as.factor(highest_degree),
+    stem_degree_flag = as.factor(stem_degree_flag),
+    
+    # Session features
+    interview_type = as.factor(interview_type)
+  ) %>%
+  na.omit() # Remove rows with missing values for modeling
+
+# Check the structure of the modeling dataset to ensure that the target variable and features are correctly formatted for modeling.
+str(model_data)
+
+# 80/20 Train-Test Split
+set.seed(123)
+
+train_index <- createDataPartition(
+  model_data$pass_flag,
+  p = 0.8,
+  list = FALSE
+)
+
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# Check the distribution of the target variable in the training and testing datasets to ensure that they are similar and that the split has not introduced any bias in terms of class distribution.
+prop.table(table(train_data$pass_flag))
+prop.table(table(test_data$pass_flag))
+
+# Remove factors with only one level
+train_data <- train_data %>%
+  select(where(~ !(is.factor(.) && nlevels(.) < 2)))
+
+test_data <- test_data %>%
+  select(names(train_data))
+
+# 5-Fold Cross Validation + Logistic Regression
+control <- trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary
+)
+
+cv_model <- train(
+  pass_flag ~ .,
+  data = train_data,
+  method = "glm",
+  family = "binomial",
+  trControl = control,
+  metric = "ROC"
+)
+
+print(cv_model)
+
+# Train Final Logistic Regression on Training Set
+final_model <- glm(
+  pass_flag ~ .,
+  data = train_data,
+  family = binomial,
+  weights = ifelse(train_data$pass_flag == "fail", 1.5, 1)
+)
+
+summary(final_model)
+
+# Predict probabilities on the test set using the final logistic regression model, which will allow for evaluation of the model's performance in terms of its ability to discriminate between pass and fail outcomes based on the predicted probabilities.
+test_prob <- predict(
+  final_model,
+  newdata = test_data,
+  type = "response"
+)
+
+# Calculate the ROC curve and AUC for the test set predictions to evaluate the performance of the logistic regression model in distinguishing between pass and fail outcomes. The ROC curve will show the trade-off between sensitivity and specificity at different probability thresholds, while the AUC will provide a single metric summarizing the overall discriminatory ability of the model.
+roc_obj <- roc(test_data$pass_flag, test_prob, levels=c("fail","pass"))
+auc_value <- auc(roc_obj)
+print(auc_value)
+
+plot(roc_obj, main = "ROC Curve - Test Set")
+
+# Create a confusion matrix to evaluate the performance of the logistic regression model on the test set by comparing the predicted class labels (based on a probability threshold of 0.5) with the actual class labels in the test data. This will allow for assessment of the model's accuracy, sensitivity, specificity, and other performance metrics.
+coords(roc_obj, "best", ret="threshold", best.method="closest.topleft")
+test_pred <- ifelse(test_prob > 0.5711332, "pass", "fail")
+test_pred <- factor(test_pred, levels = c("fail","pass"))
+
+confusionMatrix(test_pred, test_data$pass_flag)
+
+
+set.seed(123)
+# Train-test split
+train_index <- createDataPartition(model_data$pass_flag, p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# Remove factors with only 1 level from the training data, and ensure that the test data has the same columns as the training data after removing any factors with only one level. This step is important to prevent issues during modeling, as factors with only one level do not provide any discriminatory power and can cause errors in certain modeling algorithms.
+train_data <- train_data %>% select(where(~ !(is.factor(.) && nlevels(.) < 2)))
+test_data <- test_data %>% select(names(train_data))
+
+# Cross-validation control
+control <- trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary
+)
+
+# Train Decision Tree
+dt_model <- train(
+  pass_flag ~ .,
+  data = train_data,
+  method = "rpart",
+  trControl = control,
+  metric = "ROC"
+)
+
+# Print the results of the decision tree model, including the cross-validation performance metrics and the final model structure. This will allow for evaluation of how well the decision tree model performs in terms of its ability to discriminate between pass and fail outcomes, as well as understanding which features are most important in the decision-making process of the tree.
+print(dt_model$finalModel)
+
+# Predict probabilities on the test set using the trained decision tree model, which will allow for evaluation of the model's performance in terms of its ability to discriminate between pass and fail outcomes based on the predicted probabilities.
+dt_prob <- predict(dt_model, newdata = test_data, type = "prob")[, "pass"]
+roc_dt <- roc(test_data$pass_flag, dt_prob, levels = c("fail","pass"))
+print(auc(roc_dt))
+plot(roc_dt, main = "Decision Tree ROC")
+
+library(randomForest)
+# Train Random Forest
+rf_model <- train(
+  pass_flag ~ .,
+  data = train_data,
+  method = "rf",
+  trControl = control,
+  metric = "ROC",
+  importance = TRUE
+)
+
+# Print the results of the random forest model, including the cross-validation performance metrics and the variable importance plot. This will allow for evaluation of how well the random forest model performs in terms of its ability to discriminate between pass and fail outcomes, as well as understanding which features are most important in the ensemble of decision trees that make up the random forest.
+rf_prob <- predict(rf_model, newdata = test_data, type = "prob")[, "pass"]
+roc_rf <- roc(test_data$pass_flag, rf_prob, levels = c("fail","pass"))
+print(auc(roc_rf))
+plot(roc_rf, main = "Random Forest ROC")
+
+# Random Forest Feature Importance
+rf_imp <- varImp(rf_model)
+print(rf_imp)
+plot(rf_imp, top=15, main="Top 15 Features")
+
+
+library(xgboost)
+library(lightgbm)
+library(Matrix)
+library(pROC)
+library(dplyr)
+
+# Data preprocessing
+model_data_boost <- model_data %>%
+  mutate(
+    pass_flag = ifelse(pass_flag == "pass", 1, 0),
+    school_tier_usnews = as.factor(school_tier_usnews),
+    highest_degree = as.factor(highest_degree),
+    stem_degree_flag = as.factor(stem_degree_flag),
+    interview_type = as.factor(interview_type)
+  ) %>%
+  na.omit()
+
+# Train/Test split (80/20)
+set.seed(123)
+# Use sample() to create a random index for the training set, ensuring that the split is reproducible by setting a seed. The training set will consist of 80% of the data, while the remaining 20% will be used as the test set for evaluating model performance.
+train_idx <- sample(seq_len(nrow(model_data_boost)), size = 0.8 * nrow(model_data_boost))
+train_data <- model_data_boost[train_idx, ]
+test_data <- model_data_boost[-train_idx, ]
+
+train_x <- train_data %>% select(-pass_flag)
+train_y <- train_data$pass_flag
+test_x <- test_data %>% select(-pass_flag)
+test_y <- test_data$pass_flag
+
+
+# XGBoost
+# Convert to numeric matrix format for XGBoost, ensuring that all factor variables are converted to numeric values. This is necessary because XGBoost requires input data to be in a numeric matrix format, and factors need to be encoded as numeric values (e.g., using as.numeric()) to be used in the model training process.
+train_matrix <- as.matrix(train_x %>% mutate(across(where(is.factor), as.numeric)))
+test_matrix <- as.matrix(test_x %>% mutate(across(where(is.factor), as.numeric)))
+dtrain <- xgb.DMatrix(data = train_matrix, label = train_y)
+dtest <- xgb.DMatrix(data = test_matrix, label = test_y)
+
+# Set XGBoost parameters, including the objective function for binary classification, evaluation metric (AUC), maximum tree depth, learning rate, subsample ratio, and column sample ratio. These parameters will control the behavior of the XGBoost model during training and can be tuned to optimize performance.
+xgb_params <- list(
+  objective = "binary:logistic",
+  eval_metric = "auc",
+  max_depth = 4,
+  learning_rate = 0.1,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+set.seed(123)
+# 5-fold CV
+xgb_cv <- xgb.cv(
+  params = xgb_params,
+  data = dtrain,
+  nrounds = 500,
+  nfold = 5,
+  early_stopping_rounds = 10,
+  verbose = 0,
+  stratified = TRUE
+)
+# Extract the best number of rounds from cross-validation results, which will be used to train the final XGBoost model. If early stopping was triggered during cross-validation, the best number of rounds will be the iteration at which the best performance was achieved. If early stopping did not trigger, we will use the full number of rounds specified (500 in this case) for training the final model.
+best_nrounds <- xgb_cv$best_iteration
+# If early stopping did not trigger, use the full number of rounds
+if (is.null(best_nrounds) || best_nrounds == 0) best_nrounds <- 100 
+
+# train final XGBoost model using the best number of rounds determined from cross-validation, which will allow for training a model that is optimized based on the performance observed during cross-validation. The final model will be trained on the entire training dataset using the specified parameters and the optimal number of boosting rounds.
+xgb_model <- xgb.train(
+  params = xgb_params,
+  data = dtrain,
+  nrounds = best_nrounds,
+  verbose = 0
+)
+
+# predict
+xgb_pred <- predict(xgb_model, dtest)
+roc_xgb <- pROC::roc(test_y, xgb_pred)
+cat("XGBoost Test AUC:", pROC::auc(roc_xgb), "\n")
+pROC::plot.roc(roc_xgb, main = "XGBoost ROC")
+
+# important features
+xgb_imp <- xgb.importance(feature_names = colnames(train_matrix), model = xgb_model)
+xgb.plot.importance(xgb_imp, top_n = 15, main = "XGBoost Top 15 Features")
+
+
+# LightGBM
+# LightGBM can handle categorical features directly, so we need to identify which features are categorical and pass that information to the model. This will allow LightGBM to apply appropriate encoding and handling for categorical variables during model training, which can improve performance and interpretability.
+categorical_feats <- which(sapply(train_x, is.factor))
+# Convert to numeric matrix format for LightGBM, ensuring that all factor variables are converted to numeric values. This is necessary because LightGBM requires input data to be in a numeric matrix format, and factors need to be encoded as numeric values (e.g., using as.numeric()) to be used in the model training process.
+lgb_train <- lgb.Dataset(
+  data = train_matrix,
+  label = train_y,
+  categorical_feature = categorical_feats
+)
+# Create a validation dataset for LightGBM using the test set, which will allow for evaluation of the model's performance on unseen data during training. This validation dataset will be used to monitor the model's performance and apply early stopping if the performance does not improve after a certain number of iterations.
+lgb_test <- lgb.Dataset.create.valid(
+  lgb_train,
+  data = test_matrix,
+  label = test_y
+)
+# Set LightGBM parameters, including the objective function for binary classification, evaluation metric (AUC), maximum tree depth, number of leaves, learning rate, feature fraction, bagging fraction, and bagging frequency. These parameters will control the behavior of the LightGBM model during training and can be tuned to optimize performance.
+lgb_params <- list(
+  objective = "binary",
+  metric = "auc",
+  max_depth = 4,
+  num_leaves = 7,
+  learning_rate = 0.1,
+  feature_fraction = 0.8,
+  bagging_fraction = 0.8,
+  bagging_freq = 1
+)
+# Train
+set.seed(123)
+lgb_model <- lgb.train(
+  params = lgb_params,
+  data = lgb_train,
+  nrounds = 500,
+  valids = list(test = lgb_test),
+  early_stopping_rounds = 10,
+  verbose = 0
+)
+
+# predict
+lgb_pred <- predict(lgb_model, test_matrix)
+roc_lgb <- pROC::roc(test_y, lgb_pred)
+cat("LightGBM Test AUC:", pROC::auc(roc_lgb), "\n")
+pROC::plot.roc(roc_lgb, main = "LightGBM ROC")
+
+# Importance features
+lgb_imp <- lgb.importance(lgb_model)
+lgb.plot.importance(lgb_imp, top_n = 15)
